@@ -1,0 +1,59 @@
+openapi: "3.0.2"
+info:
+  title: Armoço
+  version: "0.0.0"
+servers:
+  - url: http://localhost:8080
+paths:
+  /test:
+    get:
+      description: Return a random image object
+      responses:
+        "200":
+          description: OK
+
+  /v1/images:
+    get:
+      tags:
+        - images
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImageResponse"
+        "500":
+          description: Internal Server Error
+    post:
+      tags:
+        - images
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+
+components:
+  schemas:
+    ImageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        category:
+          type: string

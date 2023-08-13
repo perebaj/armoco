@@ -6,7 +6,7 @@ GOLANGCI_LINT_VERSION=v1.54.0
 
 # configuration/aliases
 version=$(shell git rev-parse --short HEAD)
-base_image=us-central1-docker.pkg.dev/birdie-org/birdie/jj/armoco
+base_image=perebaj/armoco
 image=$(base_image):$(version)
 devimage=armoco-dev
 # To avoid downloading deps everytime it runs on containers
