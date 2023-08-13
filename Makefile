@@ -22,6 +22,12 @@ covreport ?= coverage.txt
 
 all: lint test image
 
+## Start the service 
+.PHONY: dev/start
+dev/start: service
+	./cmd/armoco/armoco
+
+
 ## run isolated tests
 .PHONY: test
 test:
@@ -61,11 +67,6 @@ test/coverage:
 .PHONY: test/coverage/show
 test/coverage/show: test/coverage
 	go tool cover -html=$(covreport)
-
-## Configure a proxy to the service running on GKE (environment depends on which cluster is configured on kubectl).
-.PHONY: port-forward
-port-forward:
-	kubectl port-forward -n jj service/armoco 8080:80
 
 ## Build the service image
 .PHONY: image
