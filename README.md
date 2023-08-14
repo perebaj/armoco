@@ -8,6 +8,8 @@ Ja almoçou hoje?
 
 Before you begin, ensure that you have Golang installed on your machine. To run the application, open your terminal and type:
 
+`export CLOUDFLARE_API_TOKEN=jojoisaweasome`
+
 `make dev/start`
 
 To view a list of all available commands, simply type:
@@ -17,3 +19,4 @@ To view a list of all available commands, simply type:
 ## Api 
 
 The API routes are located in the `api/` folder. After running the application using `make dev/start`, you can access the API through your web browser or API client at http://localhost:8080.
+

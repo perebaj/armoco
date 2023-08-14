@@ -22,9 +22,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ImageResponse"
+                $ref: "#/components/schemas/ImageResponse"
         "500":
           description: Internal Server Error
     post:
@@ -53,7 +51,9 @@ components:
       properties:
         id:
           type: string
-        url:
+        filename:
           type: string
-        category:
-          type: string
+        variants:
+          type: array
+          items:
+            type: string

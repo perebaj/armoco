@@ -14,9 +14,17 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type Application struct {
-	Cloudflare *cloudflare.API
-}
+type (
+	Application struct {
+		CloudFlare *cloudflare.API
+	}
+
+	Image struct {
+		Id       string   `json:"id"`
+		FileName string   `json:"filename"`
+		Variants []string `json:"variants"`
+	}
+)
 
 func (app *Application) handlerPostImage(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlePostImage")
@@ -26,65 +34,61 @@ func (app *Application) handlerPostImage(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	slog.Info("form", "form", r.Form)
-	slog.Info("form", "form name", r.Form["name"])
-
-	file, handler, err := r.FormFile("image")
-	if err != nil {
-		slog.Error("failed to get image from form", "error", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	mForm := r.MultipartForm
+	for k := range mForm.File {
+		file, fileHeader, err := r.FormFile(k)
+		if err != nil {
+			slog.Error("failed to get image from form", "error", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		slog.Info("Uploaded File", "name", fileHeader.Filename, "size", fileHeader.Size, "MIME", fileHeader.Header)
+		localFileNmae := "./tmp/" + fileHeader.Filename
+		out, err := os.Create(localFileNmae)
+		if err != nil {
+			slog.Error("failed to create file", "error", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer out.Close()
+		_, err = io.Copy(out, file)
+		if err != nil {
+			slog.Error("failed to copy file", "error", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("File uploaded successfully :)"))
 	}
-	defer file.Close()
-
-	f, err := os.OpenFile("./uploads/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		slog.Error("failed to open file", "error", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer f.Close()
-
-	_, err = io.Copy(f, file)
-	if err != nil {
-		slog.Error("failed to copy file", "error", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.Write([]byte("File uploaded successfully :)"))
 }
 
-func (app *Application) handlerGetImage(w http.ResponseWriter, r *http.Request) {
-	images, err := app.Cloudflare.ListImages(r.Context(), nil, cloudflare.ListImagesParams{})
+func (app *Application) handlerGetRandomImage(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handleGetImage")
+
+	imgs, err := app.CloudFlare.ListImages(r.Context(), &cloudflare.ResourceContainer{
+		Identifier: "203752570d3d905ee071d7857cc2989d", // TODO(JOJO): Remove hardcode
+		Level:      cloudflare.AccountRouteLevel,
+	}, cloudflare.ListImagesParams{})
 
 	if err != nil {
 		slog.Error("failed to list images", "error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	slog.Info("images", "images", images)
+	randomImage := imgs[rand.Intn(len(imgs))]
 
-	selectedImage := images[rand.Intn(len(images))]
-
-	image, err := app.Cloudflare.GetImage(r.Context(), nil, selectedImage.ID)
-
-	if err != nil {
-		slog.Error("failed to get image", "error", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	imageByte, err := json.Marshal(image)
+	imgByte, err := json.Marshal(Image{
+		Id:       randomImage.ID,
+		FileName: randomImage.Filename,
+		Variants: randomImage.Variants,
+	})
 	if err != nil {
 		slog.Error("failed to marshal image", "error", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(imageByte)
+	w.Write(imgByte)
 }
 
 //go:embed openapi.yaml
@@ -93,7 +97,7 @@ var swaggerFs embed.FS
 func (app *Application) Routes() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/v1/images", app.handlerPostImage).Methods("POST")
-	router.HandleFunc("/v1/images", app.handlerGetImage).Methods("GET")
+	router.HandleFunc("/v1/images", app.handlerGetRandomImage).Methods("GET")
 
 	opts := middleware.SwaggerUIOpts{SpecURL: "openapi.yaml"}
 	sh := middleware.SwaggerUI(opts, nil)

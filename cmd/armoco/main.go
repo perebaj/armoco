@@ -11,33 +11,35 @@ import (
 
 	"github.com/birdie-ai/armoco/api"
 	"github.com/birdie-ai/golibs/slog"
+	"github.com/cloudflare/cloudflare-go"
 	"github.com/kelseyhightower/envconfig"
 )
 
 const serviceName = "armoco"
 
-type cfg struct {
-	CfApiKey   string `envconfig:"CF_API_KEY"`
-	CfApiEmail string `envconfig:"CF_API_EMAIL"`
+type Config struct {
+	LogLevel           string `envconfig:"LOG_LEVEL"`
+	LogFormat          string `envconfig:"LOG_FMT"`
+	CloudFlareAPIToken string `envconfig:"CLOUDFLARE_API_TOKEN"`
 }
 
 func main() {
 	logcfg, err := slog.LoadConfig(serviceName)
 	abortonerr(err)
-
-	if err := envconfig.Process(serviceName, &cfg{}); err != nil {
+	var cfg Config
+	if err := envconfig.Process(serviceName, &cfg); err != nil {
 		slog.Fatal("failed to load config from environment", "error", err.Error())
 	}
 
 	err = slog.Configure(logcfg)
-	abortonerr(err)
 
-	// _, err = cloudflare.New(os.Getenv("CF_API_KEY"), os.Getenv("CF_API_EMAIL"))
+	cloudFlareClient, err := openCloudFlare(cfg)
+	if err != nil {
+		slog.Fatal("failed to open cloudflare client", "error", err.Error())
+	}
 
-	// abortonerr(err)
-
-	app := &api.Application{
-		Cloudflare: nil,
+	app := api.Application{
+		CloudFlare: cloudFlareClient,
 	}
 
 	srv := &http.Server{
@@ -50,8 +52,6 @@ func main() {
 	slog.Info("starting service", "addr", srv.Addr)
 	err = srv.ListenAndServe()
 	abortonerr(err)
-
-	slog.Info("TODO: implement armoco")
 }
 
 func abortonerr(err error) {
@@ -59,4 +59,13 @@ func abortonerr(err error) {
 		slog.Error("fatal error initializing service", "error", err.Error())
 		os.Exit(1)
 	}
+}
+
+func openCloudFlare(cfg Config) (cloudFlareAPI *cloudflare.API, err error) {
+	api, err := cloudflare.NewWithAPIToken(cfg.CloudFlareAPIToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return api, nil
 }
