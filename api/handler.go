@@ -3,10 +3,8 @@ package api
 import (
 	"embed"
 	"encoding/json"
-	"io"
 	"math/rand"
 	"net/http"
-	"os"
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/go-openapi/runtime/middleware"
@@ -26,6 +24,10 @@ type (
 	}
 )
 
+func handlerTest(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Jojo is Awesome!"))
+}
+
 func (app *Application) handlerPostImage(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlePostImage")
 	err := r.ParseMultipartForm(32 << 20) // 32MB is the maximum size of a file we can upload
@@ -43,22 +45,35 @@ func (app *Application) handlerPostImage(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		defer file.Close()
-		slog.Info("Uploaded File", "name", fileHeader.Filename, "size", fileHeader.Size, "MIME", fileHeader.Header)
-		localFileNmae := "./tmp/" + fileHeader.Filename
-		out, err := os.Create(localFileNmae)
+
+		img, err := app.CloudFlare.UploadImage(r.Context(), &cloudflare.ResourceContainer{
+			Identifier: "203752570d3d905ee071d7857cc2989d", // JOJO: Remove hardcode
+			Level:      cloudflare.AccountRouteLevel,
+		}, cloudflare.UploadImageParams{
+			File: file,
+			Name: fileHeader.Filename,
+			Metadata: map[string]interface{}{
+				"upload": "api",
+			},
+		})
 		if err != nil {
-			slog.Error("failed to create file", "error", err.Error())
+			slog.Error("failed to upload image", "error", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		defer out.Close()
-		_, err = io.Copy(out, file)
+		slog.Info("uploaded image", "id", img.ID, "filename", img.Filename)
+
+		imgByte, err := json.Marshal(Image{
+			Id:       img.ID,
+			FileName: img.Filename,
+			Variants: img.Variants,
+		})
 		if err != nil {
-			slog.Error("failed to copy file", "error", err.Error())
+			slog.Error("failed to marshal image", "error", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte("File uploaded successfully :)"))
+		w.Write(imgByte)
 	}
 }
 
@@ -98,7 +113,7 @@ func (app *Application) Routes() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/v1/images", app.handlerPostImage).Methods("POST")
 	router.HandleFunc("/v1/images", app.handlerGetRandomImage).Methods("GET")
-
+	router.HandleFunc("/test", handlerTest).Methods("GET")
 	opts := middleware.SwaggerUIOpts{SpecURL: "openapi.yaml"}
 	sh := middleware.SwaggerUI(opts, nil)
 	router.Handle("/docs", sh)

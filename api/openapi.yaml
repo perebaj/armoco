@@ -7,7 +7,7 @@ servers:
 paths:
   /test:
     get:
-      description: Return a random image object
+      description: Api Health Check
       responses:
         "200":
           description: OK
@@ -41,6 +41,10 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageResponse"
         "500":
           description: Internal Server Error
 

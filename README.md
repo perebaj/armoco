@@ -1,4 +1,4 @@
-# armoco
+# armoço
 Ja almoçou hoje?
 
 ![](assets/japodealmocar.gif)
@@ -8,7 +8,7 @@ Ja almoçou hoje?
 
 Before you begin, ensure that you have Golang installed on your machine. To run the application, open your terminal and type:
 
-`export CLOUDFLARE_API_TOKEN=jojoisaweasome`
+`export CLOUDFLARE_API_TOKEN=<jojoisaweasome> <- Type a valid token here`
 
 `make dev/start`
 
